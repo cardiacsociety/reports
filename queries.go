@@ -54,3 +54,5 @@ FROM
 WHERE
     member_id = ?
 ORDER BY mt.granted_on ASC`
+
+const QUERY_TITLES = `SELECT id, name FROM ms_title;`

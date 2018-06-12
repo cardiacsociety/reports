@@ -40,7 +40,7 @@ func main() {
 	fmt.Println("ok")
 
 	fmt.Println("============================================================================================")
-	fmt.Println("Report: Subscriptions Count by Type")
+	fmt.Println("Report: Subscription Count by Type (All)")
 	r, err := reportSubsCount(QUERY_SUBSCRIPTION_COUNTS)
 	if err != nil {
 		log.Fatalln(err)
@@ -48,7 +48,7 @@ func main() {
 	fmt.Println(r)
 
 	fmt.Println("============================================================================================")
-	fmt.Println("Report: Active Subscriptions Count by Type")
+	fmt.Println("Report: Subscription Count by Type (Active Members)")
 	r, err = reportSubsCount(QUERY_ACTIVE_SUBSCRIPTION_COUNTS)
 	if err != nil {
 		log.Fatalln(err)
@@ -63,7 +63,7 @@ func main() {
 	//fmt.Println(xm)
 
 	fmt.Println("============================================================================================")
-	fmt.Println("Report: Membership Title by Year")
+	fmt.Println("Report: Membership Title by Year Granted")
 	err = reportTitleByYear(xm)
 	if err != nil {
 		log.Fatalln(err)
@@ -103,38 +103,29 @@ func reportTitleByYear(members []Member) error {
 
 	fmt.Println("Titles ranging from", startYear, "-", currentYear)
 
-	type titleCount struct {
-		Title string
-		Count int
-	}
 
-	type reportYear struct {
-		Year int
-		Data []titleCount
-
-	}
+	report := map[int][]map[string]int{}
 
 
-	var report []reportYear
 
 	// Initialise report
 	for y := startYear; y <= currentYear; y++ {
-		ry := reportYear{Year: y}
-		report = append(report, ry)
-	}
 
-	for _, m := range members {
-		for _, t := range m.TitleHistory {
+		report[y] = []map[string]int{}
 
+		// todo ... get this from database!!!
+		types := []string{"Applicant", "Affiliate", "Associate", "Fellow", "Fellow & Life", "Ordinary", "Life"}
 
-			report[t.Year].Data = "test"
+		for _, t := range types {
+			c := titleYearCount(members, t, y)
+			a := map[string]int{t: c}
+			report[y] = append(report[y], a)
 		}
 	}
-	//
-	//a := map[string]int{"one": 1}
-	//b := map[string]int{"two": 2}
 
-	fmt.Println(report)
+	for y := startYear; y <= currentYear; y++ {
+		fmt.Println("Year", y, report[y])
+	}
 
 	return nil
 }
@@ -182,4 +173,20 @@ func oldestTitleYear(members []Member) int {
 		}
 	}
 	return y
+}
+
+// Returns the number of occurrences of a particular title, in the specified year
+func titleYearCount(members []Member, title string, year int) int {
+
+	var c int
+
+	for _, m := range members {
+		for _, t := range m.TitleHistory {
+			if t.Year == year && t.Name == title {
+				c++
+			}
+		}
+	}
+
+	return c
 }
