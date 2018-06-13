@@ -8,6 +8,7 @@ import (
 
 	"github.com/34South/envr"
 	"github.com/pkg/errors"
+	"encoding/json"
 )
 
 var MySQL = MySQLConnection{}
@@ -16,6 +17,15 @@ type SubscriptionReport struct {
 	Rows []SubscriptionReportRow
 }
 type SubscriptionReportRow struct {
+	Subscription string
+	Count        int
+}
+
+type LapsedReport struct {
+	Rows []LapsedReportRow
+}
+type LapsedReportRow struct {
+	LapsedYear int
 	Subscription string
 	Count        int
 }
@@ -45,7 +55,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	fmt.Println(r)
+	printJSON(r)
 
 	fmt.Println("============================================================================================")
 	fmt.Println("Report: Subscription Count by Type (Active Members)")
@@ -53,22 +63,29 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	fmt.Println(r)
+	printJSON(r)
 
 	// Get all members for next set of reports todo need this for inactive members
 	xm, err := allMembers()
 	if err != nil {
 		log.Fatalln(err)
 	}
-	//fmt.Println(xm)
 
 	fmt.Println("============================================================================================")
 	fmt.Println("Report: Membership Title by Year Granted")
-	err = reportTitleByYear(xm)
+	r2, err := reportTitleByYear(xm)
 	if err != nil {
 		log.Fatalln(err)
 	}
+	printJSON(r2)
 
+	fmt.Println("============================================================================================")
+	fmt.Println("Report: Lapsed Memberships By Title and Year Lapsed")
+	r3, err := reportLapsedByYear(QUERY_CURRENTLY_LAPSED_MEMBERS_COUNT_TITLE_YEAR)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	printJSON(r3)
 }
 
 func reportSubsCount(query string) (SubscriptionReport, error) {
@@ -93,9 +110,31 @@ func reportSubsCount(query string) (SubscriptionReport, error) {
 	return report, nil
 }
 
+func reportLapsedByYear(query string) (LapsedReport, error) {
+
+	var report LapsedReport
+
+	rows, err := MySQL.Session.Query(query)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		r := LapsedReportRow{}
+		err := rows.Scan(&r.LapsedYear, &r.Subscription, &r.Count)
+		if err != nil {
+			return report, errors.Wrap(err, "reportLapsedByYear")
+		}
+		report.Rows = append(report.Rows, r)
+	}
+
+	return report, nil
+}
+
 // reports on the changes of status in order to determine how many members allowed their memberships to lapse,
 // and what type of members these were
-func reportTitleByYear(members []Member) error {
+func reportTitleByYear(members []Member) (map[int][]map[string]int, error) {
 
 	// now we have a collection of all member histories, aggregate into some sensible structure
 	startYear := oldestTitleYear(members)
@@ -103,12 +142,11 @@ func reportTitleByYear(members []Member) error {
 
 	fmt.Println("Titles ranging from", startYear, "-", currentYear)
 
-
 	report := map[int][]map[string]int{}
 
-
-
 	// Initialise report
+	fmt.Println("Year\tApplicant\tAffiliate\tAssociate\tFellow\tFellow Life\tOrdinary\tLife")
+
 	for y := startYear; y <= currentYear; y++ {
 
 		report[y] = []map[string]int{}
@@ -123,11 +161,7 @@ func reportTitleByYear(members []Member) error {
 		}
 	}
 
-	for y := startYear; y <= currentYear; y++ {
-		fmt.Println("Year", y, report[y])
-	}
-
-	return nil
+	return report, nil
 }
 
 // allMembers creates a slice of Member values for all member records
@@ -189,4 +223,14 @@ func titleYearCount(members []Member, title string, year int) int {
 	}
 
 	return c
+}
+
+func printJSON(data interface{}) {
+
+	xb, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	fmt.Println(string(xb))
 }

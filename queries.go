@@ -56,3 +56,38 @@ WHERE
 ORDER BY mt.granted_on ASC`
 
 const QUERY_TITLES = `SELECT id, name FROM ms_title;`
+
+const QUERY_CURRENTLY_LAPSED_MEMBERS_TITLE_YEAR = `SELECT 
+    t.name AS Title,
+    ms.member_id AS MemberID,
+    DATE_FORMAT(ms.updated_at, '%Y') AS LapsedOn
+FROM
+    ms_m_status ms
+        LEFT JOIN
+    ms_m_title mt ON ms.member_id = mt.member_id
+        LEFT JOIN
+    ms_title t ON mt.ms_title_id = t.id
+WHERE
+    ms.ms_status_id = 10004
+        AND ms.comment != 'Initial data import'
+        AND t.name != 'Admin Member'
+        AND ms.current = 1
+		AND mt.current = 1`
+
+const QUERY_CURRENTLY_LAPSED_MEMBERS_COUNT_TITLE_YEAR = `SELECT 
+	DATE_FORMAT(ms.updated_at, '%Y') AS LapsedYear,
+    t.name AS Title,
+    count(ms.member_id) AS Count
+FROM
+    ms_m_status ms
+        LEFT JOIN
+    ms_m_title mt ON ms.member_id = mt.member_id
+        LEFT JOIN
+    ms_title t ON mt.ms_title_id = t.id
+WHERE
+    ms.ms_status_id = 10004
+        AND ms.comment != 'Initial data import'
+        AND t.name != 'Admin Member'
+        AND ms.current = 1
+		AND mt.current = 1
+GROUP BY LapsedYear,Title`
